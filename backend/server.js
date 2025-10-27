@@ -1,16 +1,14 @@
-// server.js
-
 const express = require('express');
 const app = express();
-const userRoutes = require('./routes/user');
 
-// Middleware để đọc JSON body
+// Giúp server hiểu JSON gửi từ Postman
 app.use(express.json());
 
-// Sử dụng route /users
-app.use('/users', userRoutes);
+// Import routes
+const userRoutes = require('./routes/user');
 
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+// Gắn routes vào server
+app.use('/', userRoutes);
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
