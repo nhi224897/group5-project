@@ -1,65 +1,162 @@
-// ========== userController.js ==========
+const User = require('../models/User'); // Đảm bảo Model User đã được tạo
+const bcrypt = require('bcryptjs'); // Import bcrypt để hash mật khẩu (khi Admin tạo/cập nhật)
 
-// Mảng tạm lưu danh sách user (nếu chưa dùng MongoDB)
-let users = [];
+// -----------------------------------------------------------------------------
+// PROFILE ENDPOINTS (Dành cho người dùng đã đăng nhập)
+// -----------------------------------------------------------------------------
 
-// ==========================
-// GET: Lấy danh sách tất cả user
-// ==========================
-exports.getUsers = (req, res) => {
-  res.json(users);
+// @desc    Lấy hồ sơ người dùng hiện tại (READ Profile)
+// @route   GET /api/profile
+// @access  Private (Cần đăng nhập - protect)
+const getProfile = async (req, res) => { // <-- Đã đổi tên từ getUserProfile
+    // req.user được thêm vào bởi middleware 'protect', chứa thông tin người dùng đã xác thực
+    const user = await User.findById(req.user.id).select('-password'); // Bỏ qua trường password
+    
+    if (user) {
+        res.json({
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            createdAt: user.createdAt,
+        });
+    } else {
+        res.status(404).json({ message: 'User not found' });
+    }
 };
 
-// ==========================
-// POST: Thêm user mới (có validation)
-// ==========================
-exports.createUser = (req, res) => {
-  const { name, email } = req.body;
+// @desc    Cập nhật hồ sơ người dùng hiện tại (UPDATE Profile)
+// @route   PUT /api/profile
+// @access  Private (Cần đăng nhập - protect)
+const updateProfile = async (req, res) => { // <-- Đã đổi tên từ updateUserProfile
+    // req.user chứa ID của người dùng hiện tại
+    const user = await User.findById(req.user.id);
 
-  // 1️⃣ Kiểm tra nếu thiếu name hoặc email
-  if (!name || !email) {
-    return res.status(400).json({ message: "Name và Email là bắt buộc!" });
-  }
+    if (user) {
+        // Cập nhật các trường (nếu chúng được gửi lên trong body request)
+        user.name = req.body.name || user.name;
+        user.email = req.body.email || user.email;
 
-  // 2️⃣ Kiểm tra định dạng email hợp lệ
-  const emailRegex = /\S+@\S+\.\S+/;
-  if (!emailRegex.test(email)) {
-    return res.status(400).json({ message: "Email không hợp lệ!" });
-  }
+        // Xử lý cập nhật mật khẩu (nếu có)
+        if (req.body.password) {
+            if (req.body.password.length < 6) {
+                 return res.status(400).json({ message: 'Mật khẩu phải có ít nhất 6 ký tự.' });
+            }
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(req.body.password, salt);
+        }
 
-  // 3️⃣ Nếu hợp lệ → thêm user mới
-  const newUser = {
-    id: Date.now(),
-    name,
-    email,
-  };
+        const updatedUser = await user.save();
+        
+        // Trả về thông tin người dùng đã cập nhật (không có mật khẩu)
+        res.json({
+            _id: updatedUser._id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            role: updatedUser.role,
+            message: 'Hồ sơ đã được cập nhật thành công.',
+        });
 
-  users.push(newUser);
-  res.status(201).json(newUser);
+    } else {
+        res.status(404).json({ message: 'User not found' });
+    }
 };
 
-// ==========================
-// PUT: Sửa thông tin user theo ID
-// ==========================
-exports.updateUser = (req, res) => {
-  const { id } = req.params;
-  const index = users.findIndex(u => u.id == id);
+// -----------------------------------------------------------------------------
+// ADMIN ENDPOINTS (Dành cho Quản lý CRUD)
+// -----------------------------------------------------------------------------
 
-  if (index !== -1) {
-    users[index] = { ...users[index], ...req.body };
-    res.json(users[index]);
-  } else {
-    res.status(404).json({ message: "User not found" });
-  }
+// @desc    Lấy tất cả người dùng (READ All)
+// @route   GET /api/users
+// @access  Private/Admin
+const getAllUsers = async (req, res) => {
+    try {
+        const users = await User.find({}).select('-password'); // Bỏ qua trường password
+        res.status(200).json({ success: true, count: users.length, data: users });
+    } catch (error) {
+        console.error("Error fetching users:", error.message);
+        res.status(500).json({ success: false, error: 'Server Error: Could not fetch users.' });
+    }
 };
 
-// ==========================
-// DELETE: Xóa user theo ID
-// ==========================
-exports.deleteUser = (req, res) => {
-  const { id } = req.params;
-  users = users.filter(u => u.id != id);
-  res.json({ message: "User deleted" });
+// @desc    Tạo người dùng mới (CREATE) - Chỉ Admin
+// @route   POST /api/users
+// @access  Private/Admin
+const createUser = async (req, res) => {
+    try {
+        const { password } = req.body;
+
+        // 1. Mã hóa mật khẩu trước khi tạo
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            req.body.password = await bcrypt.hash(password, salt);
+        } else {
+            return res.status(400).json({ message: "Vui lòng cung cấp mật khẩu." });
+        }
+
+        // 2. Tạo người dùng (Mongoose tự kiểm tra Schema)
+        const user = await User.create(req.body); 
+        res.status(201).json({ success: true, data: user });
+    } catch (error) {
+        console.error("Error creating user:", error.message);
+        res.status(400).json({ success: false, error: error.message });
+    }
 };
 
-// ========== Hết file ==========
+// @desc    Cập nhật người dùng theo ID (UPDATE) - Chỉ Admin
+// @route   PUT /api/users/:id
+// @access  Private/Admin
+const updateUser = async (req, res) => {
+    try {
+        // Xử lý mã hóa nếu Admin cập nhật mật khẩu
+        if (req.body.password) {
+            if (req.body.password.length < 6) {
+                 return res.status(400).json({ message: 'Mật khẩu phải có ít nhất 6 ký tự.' });
+            }
+            const salt = await bcrypt.genSalt(10);
+            req.body.password = await bcrypt.hash(req.body.password, salt);
+        }
+
+        const user = await User.findByIdAndUpdate(req.params.id, req.body, {
+            new: true, 
+            runValidators: true 
+        });
+
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
+        res.status(200).json({ success: true, data: user });
+    } catch (error) {
+        console.error("Error updating user:", error.message);
+        res.status(400).json({ success: false, error: error.message });
+    }
+};
+
+// @desc    Xóa người dùng theo ID (DELETE) - Chỉ Admin
+// @route   DELETE /api/users/:id
+// @access  Private/Admin
+const deleteUser = async (req, res) => {
+    try {
+        const user = await User.findByIdAndDelete(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
+        res.status(200).json({ success: true, data: {} }); 
+    } catch (error) {
+        console.error("Error deleting user:", error.message);
+        res.status(500).json({ success: false, error: 'Server Error: Could not delete user.' });
+    }
+};
+
+// Export tất cả các hàm
+module.exports = {
+    getAllUsers,
+    createUser,
+    updateUser,
+    deleteUser,
+    getProfile, 
+    updateProfile 
+};
