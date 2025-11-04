@@ -34,7 +34,7 @@ router.post('/login', loginUser);
 router.post('/logout', protect, logoutUser); 
 
 // ----------------------------------------------------
-// Hoạt động 4: Quên & Đặt lại Mật khẩu (Public)
+// Hoạt động 3: Quên & Đặt lại Mật khẩu (Public)
 // ----------------------------------------------------
 
 // @route   POST /api/auth/forgotpassword
