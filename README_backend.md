@@ -4,7 +4,7 @@ Vai trò thành viên nhóm 5
 
     Thông tin cá nhân
 
-        Họ và tên: (Điền tên sinh viên 1)
+        Họ và tên: (Nguyễn Thảo Nhi)
 
         MSSV: (Điền MSSV)
 
