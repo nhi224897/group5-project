@@ -13,8 +13,8 @@ function UploadAvatar() {
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        setError('Kích thước file không được vượt quá 5MB');
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit for Cloudinary
+        setError('Kích thước file không được vượt quá 10MB');
         return;
       }
 
@@ -48,9 +48,22 @@ function UploadAvatar() {
     setError(null);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/users/upload-avatar', formData, {
+      // Upload to Cloudinary
+      const cloudinaryData = new FormData();
+      cloudinaryData.append('file', selectedFile);
+      cloudinaryData.append('upload_preset', 'group5_avatar'); // Replace with your upload preset
+
+      const cloudinaryResponse = await axios.post(
+        'https://api.cloudinary.com/v1_1/your-cloud-name/image/upload', // Replace with your cloud name
+        cloudinaryData
+      );
+
+      // Send avatar URL to our backend
+      const response = await axios.post('http://localhost:5000/api/users/upload-avatar', {
+        avatarUrl: cloudinaryResponse.data.secure_url
+      }, {
         headers: {
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': 'application/json'
         },
         withCredentials: true
       });
@@ -114,7 +127,7 @@ function UploadAvatar() {
             <i className="upload-icon">📸</i>
             <p>Nhấp vào đây hoặc kéo thả hình ảnh</p>
             <span className="upload-note">
-              Hỗ trợ: JPG, PNG, GIF (Tối đa: 5MB)
+              Hỗ trợ: JPG, PNG, GIF (Tối đa: 10MB)
             </span>
           </div>
         )}
@@ -157,7 +170,7 @@ function UploadAvatar() {
       <div className="avatar-guidelines">
         <h3>Hướng dẫn:</h3>
         <ul>
-          <li>Kích thước file tối đa: 5MB</li>
+          <li>Kích thước file tối đa: 10MB</li>
           <li>Định dạng hỗ trợ: JPG, PNG, GIF</li>
           <li>Nên sử dụng ảnh vuông để hiển thị tốt nhất</li>
           <li>Tránh sử dụng ảnh có nội dung không phù hợp</li>
