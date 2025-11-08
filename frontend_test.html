@@ -1,1 +1,178 @@
-<h1>Frontend test</h1>
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>Kiểm Tra Frontend</title>
+		<style>
+			body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin: 0; padding: 24px; background: #f7fafc; color: #0f172a }
+			.container{max-width:900px;margin:0 auto}
+			header{display:flex;align-items:center;gap:16px}
+			h1{margin:0;font-size:1.5rem}
+			.card{background:#fff;border-radius:8px;padding:16px;margin-top:18px;box-shadow:0 1px 3px rgba(2,6,23,0.08)}
+			.controls{display:flex;gap:8px;flex-wrap:wrap}
+			button{background:#0369a1;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
+			button:disabled{background:#94a3b8;cursor:not-allowed}
+			a.button{display:inline-block;text-decoration:none;background:#065f46;padding:8px 12px;color:#fff;border-radius:6px}
+			.status{margin-top:12px;font-weight:600}
+			.status.error{color:#dc2626}
+			.status.success{color:#059669}
+			pre{background:#0b1220;color:#d1fae5;padding:12px;border-radius:6px;overflow:auto}
+			.connection-status{display:inline-flex;align-items:center;gap:8px}
+			.dot{width:8px;height:8px;border-radius:50%;background:#94a3b8}
+			.dot.connected{background:#059669}
+			.grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px;margin-top:16px}
+			.input-group{display:flex;gap:8px;margin-top:12px}
+			input{padding:8px;border:1px solid #e2e8f0;border-radius:6px;flex:1}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<header>
+				<h1>Kiểm Tra Frontend</h1>
+				<small>— công cụ kiểm tra nhanh</small>
+			</header>
+
+			<div class="grid">
+				<div class="card">
+					<h2>Frontend (Ứng Dụng React)</h2>
+					<div class="connection-status">
+						Trạng thái: <span id="frontend-status">Đang kiểm tra...</span>
+						<div class="dot" id="frontend-dot"></div>
+					</div>
+					<div class="controls">
+						<a class="button" href="http://localhost:3000" target="_blank" rel="noopener">Mở Ứng Dụng React</a>
+						<button id="check-frontend">Test Connection</button>
+					</div>
+					<div class="input-group">
+						<input type="text" id="frontend-path" placeholder="/api/endpoint" value="/" />
+						<button id="test-frontend-api">Kiểm Tra API</button>
+					</div>
+					<details style="margin-top:12px">
+						<summary>Kết quả</summary>
+						<pre id="frontend-output">(chưa có dữ liệu)</pre>
+					</details>
+				</div>
+
+				<div class="card">
+					<h2>Backend (Máy Chủ API)</h2>
+					<div class="connection-status">
+						Trạng thái: <span id="backend-status">Đang kiểm tra...</span>
+						<div class="dot" id="backend-dot"></div>
+					</div>
+					<div class="controls">
+						<a class="button" href="http://localhost:5000" target="_blank" rel="noopener">Mở Backend</a>
+						<button id="check-backend">Kiểm Tra Kết Nối</button>
+					</div>
+					<div class="input-group">
+						<input type="text" id="backend-path" placeholder="/api/endpoint" value="/" />
+						<button id="test-backend-api">Kiểm Tra API</button>
+					</div>
+					<details style="margin-top:12px">
+						<summary>Kết quả</summary>
+						<pre id="backend-output">(chưa có dữ liệu)</pre>
+					</details>
+				</div>
+			</div>
+      
+            <p style="margin-top:16px;color:#475569">Lưu ý: Nếu máy chủ React không phản hồi, hãy chạy <code>npm install</code> và <code>npm start</code> trong thư mục <code>frontend</code>. Sử dụng Node phiên bản 16 hoặc 18 để tương thích tốt nhất với Create React App.</p>
+		</div>
+
+		<script>
+			class ServerConnection {
+				constructor(name, port) {
+					this.name = name;
+					this.baseUrl = `http://localhost:${port}`;
+					this.statusEl = document.getElementById(`${name}-status`);
+					this.dotEl = document.getElementById(`${name}-dot`);
+					this.outputEl = document.getElementById(`${name}-output`);
+					this.pathInput = document.getElementById(`${name}-path`);
+					
+					// Set up event listeners
+					document.getElementById(`check-${name}`).addEventListener('click', () => this.checkConnection());
+					document.getElementById(`test-${name}-api`).addEventListener('click', () => this.testEndpoint());
+					
+					// Initial connection check
+					this.checkConnection();
+					
+					// Set up auto-refresh
+					setInterval(() => this.checkConnection(true), 5000);
+				}
+				
+				async checkConnection(silent = false) {
+					if (!silent) {
+						this.statusEl.textContent = 'Đang kiểm tra...';
+						this.outputEl.textContent = '(đang kiểm tra kết nối...)';
+					}
+					
+					try {
+						const start = performance.now();
+						const response = await fetch(this.baseUrl, {
+							cache: 'no-store',
+							mode: 'cors'
+						});
+						const time = Math.round(performance.now() - start);
+						
+						this.statusEl.textContent = `Đã kết nối (${time}ms)`;
+						this.statusEl.className = 'status success';
+						this.dotEl.classList.add('connected');
+						
+						if (!silent) {
+							const ct = response.headers.get('content-type') || '';
+							let body;
+							if (ct.includes('application/json')) {
+								body = await response.json();
+								this.outputEl.textContent = JSON.stringify(body, null, 2);
+							} else {
+								body = await response.text();
+								this.outputEl.textContent = body;
+							}
+						}
+					} catch (err) {
+						this.statusEl.textContent = `Mất kết nối (${err.message})`;
+						this.statusEl.className = 'status error';
+						this.dotEl.classList.remove('connected');
+						if (!silent) {
+							this.outputEl.textContent = String(err);
+						}
+					}
+				}
+				
+				async testEndpoint() {
+					const path = this.pathInput.value || '/';
+					this.statusEl.textContent = 'Đang kiểm tra API...';
+					this.outputEl.textContent = '(đang gửi yêu cầu...)';
+					
+					try {
+						const url = new URL(path, this.baseUrl);
+						const response = await fetch(url, {
+							cache: 'no-store',
+							mode: 'cors'
+						});
+						
+						const ct = response.headers.get('content-type') || '';
+						let body;
+						if (ct.includes('application/json')) {
+							body = await response.json();
+							this.outputEl.textContent = JSON.stringify(body, null, 2);
+						} else {
+							body = await response.text();
+							this.outputEl.textContent = body;
+						}
+						
+						this.statusEl.textContent = `Phản hồi API: ${response.status} ${response.statusText}`;
+						this.statusEl.className = response.ok ? 'status success' : 'status error';
+					} catch (err) {
+						this.statusEl.textContent = `Lỗi API: ${err.message}`;
+						this.statusEl.className = 'status error';
+						this.outputEl.textContent = String(err);
+					}
+				}
+			}
+			
+			// Initialize connection monitors
+			const frontend = new ServerConnection('frontend', 3000);
+			const backend = new ServerConnection('backend', 5000);
+		</script>
+	</body>
+</html>

@@ -11,7 +11,7 @@ export function UserProvider({ children }) {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:3000/users');
+      const response = await axios.get('http://localhost:3000/api/users');
       setUsers(response.data);
       setError(null);
     } catch (err) {
@@ -24,7 +24,7 @@ export function UserProvider({ children }) {
   const addUser = async (userData) => {
     try {
       setLoading(true);
-      await axios.post('http://localhost:3000/users', userData);
+      await axios.post('http://localhost:3000/api/users', userData);
       await fetchUsers(); // Refresh the users list
       return { success: true };
     } catch (err) {

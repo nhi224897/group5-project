@@ -21,7 +21,7 @@ function UserList() {
 
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`http://localhost:3000/users/${id}`);
+      await axios.delete(`http://localhost:3000/api/users/${id}`);
       setUsers(users.filter(user => user.id !== id));
     } catch (err) {
       console.error('Error deleting user:', err);
@@ -39,7 +39,7 @@ function UserList() {
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.put(`http://localhost:3000/users/${editingUser.id}`, editForm);
+      const response = await axios.put(`http://localhost:3000/api/users/${editingUser.id}`, editForm);
       setUsers(users.map(user => 
         user.id === editingUser.id ? response.data : user
       ));
