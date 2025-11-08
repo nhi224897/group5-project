@@ -9,19 +9,23 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Kết nối MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
+// Cần sử dụng tên miền mới: cluster0.kyfxsc0.mongodb.net
+const FALLBACK_URI = "mongodb+srv://nhi224897_db_user:224897@cluster0.kyfxsc0.mongodb.net/group5-project?retryWrites=true&w=majority"; 
+
+// Lấy giá trị từ process.env.MONGODB_URI. Nếu undefined, dùng FALLBACK_URI.
+const MONGODB_URI_TO_CONNECT = process.env.MONGODB_URI || FALLBACK_URI;
+
+// Thêm timeout options
+mongoose.connect(MONGODB_URI_TO_CONNECT, {
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 30000
 })
-.then(() => console.log('Đã kết nối với MongoDB Atlas'))
-.catch((err) => console.error('Lỗi kết nối MongoDB:', err.message));
+.then(() => console.log('✅ Đã kết nối MongoDB Atlas thành công'))
+.catch(err => console.error('❌ Lỗi kết nối MongoDB:', err));
 
-// Import routes
-const userRoutes = require('./routes/user');
-
-// Gắn routes vào server
-app.use('/', userRoutes);
+// Dán vào đây để kiểm tra:
+console.log(`Đang cố gắng kết nối với URI: ${MONGODB_URI_TO_CONNECT}`);
 
 // Xử lý lỗi
 app.use((err, req, res, next) => {
